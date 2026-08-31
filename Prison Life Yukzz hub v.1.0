@@ -1,0 +1,133 @@
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+--// SETTINGS
+local normalSpeed = 16
+local fastSpeed = 50
+local infiniteJump = false
+
+--// GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "YukzzHub"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local main = Instance.new("Frame")
+main.Size = UDim2.fromOffset(280, 300)
+main.Position = UDim2.new(0.5, -140, 0.5, -150)
+main.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = main
+
+--// TITLE
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 50)
+title.BackgroundTransparency = 1
+title.Text = "⚡ YUKKZ HUB v1.0"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = main
+
+--// Button creator
+local function createButton(text, y)
+	local button = Instance.new("TextButton")
+
+	button.Size = UDim2.new(1, -30, 0, 45)
+	button.Position = UDim2.new(0, 15, 0, y)
+
+	button.Text = text
+	button.TextScaled = true
+	button.Font = Enum.Font.GothamBold
+
+	button.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+	button.TextColor3 = Color3.new(1, 1, 1)
+
+	button.Parent = main
+
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 8)
+	c.Parent = button
+
+	return button
+end
+
+--// MOVEMENT BUTTONS
+local speedButton = createButton("⚡ Speed: OFF", 65)
+local jumpButton = createButton("♾️ Infinite Jump: OFF", 120)
+local resetButton = createButton("🔄 Reset Character", 175)
+
+--// SPEED
+speedButton.Activated:Connect(function()
+
+	local character = player.Character
+	if not character then return end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+
+	if humanoid.WalkSpeed == normalSpeed then
+		humanoid.WalkSpeed = fastSpeed
+		speedButton.Text = "⚡ Speed: ON"
+	else
+		humanoid.WalkSpeed = normalSpeed
+		speedButton.Text = "⚡ Speed: OFF"
+	end
+end)
+
+--// INFINITE JUMP
+UIS.JumpRequest:Connect(function()
+
+	if not infiniteJump then
+		return
+	end
+
+	local character = player.Character
+	if not character then return end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+
+	humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+end)
+
+jumpButton.Activated:Connect(function()
+
+	infiniteJump = not infiniteJump
+
+	if infiniteJump then
+		jumpButton.Text = "♾️ Infinite Jump: ON"
+	else
+		jumpButton.Text = "♾️ Infinite Jump: OFF"
+	end
+end)
+
+--// RESET
+resetButton.Activated:Connect(function()
+
+	local character = player.Character
+
+	if character then
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+		if humanoid then
+			humanoid.Health = 0
+		end
+	end
+end)
+
+--// RESET SPEED AFTER RESPAWN
+player.CharacterAdded:Connect(function(character)
+
+	local humanoid = character:WaitForChild("Humanoid")
+
+	humanoid.WalkSpeed = normalSpeed
+	speedButton.Text = "⚡ Speed: OFF"
+
+end)
