@@ -1,0 +1,55 @@
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local flying = false
+local speed = 50
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "FlyGui"
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.fromOffset(140, 50)
+button.Position = UDim2.new(0, 20, 0.5, 0)
+button.Text = "FLY: OFF"
+button.TextScaled = true
+button.Parent = gui
+
+local function fly()
+	local character = player.Character
+	if not character then return end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	bv.Velocity = Vector3.zero
+	bv.Parent = root
+
+	local connection
+	connection = RunService.RenderStepped:Connect(function()
+		if not flying or not root.Parent then
+			connection:Disconnect()
+			bv:Destroy()
+			return
+		end
+
+		local camera = workspace.CurrentCamera
+		bv.Velocity = camera.CFrame.LookVector * speed
+	end)
+end
+
+button.Activated:Connect(function()
+	flying = not flying
+
+	if flying then
+		button.Text = "FLY: ON"
+		fly()
+	else
+		button.Text = "FLY: OFF"
+	end
+end)
