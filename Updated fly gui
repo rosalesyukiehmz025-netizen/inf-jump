@@ -1,0 +1,296 @@
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+local flying = false
+local speed = 50
+local vertical = 0
+local flyConnection
+
+--// GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "FlyGui"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+--// Button creator
+local function createButton(text, size, position)
+	local button = Instance.new("TextButton")
+	button.Size = size
+	button.Position = position
+	button.Text = text
+	button.TextScaled = true
+	button.BackgroundTransparency = 0.15
+	button.Parent = gui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = button
+
+	return button
+end
+
+--// Fly button
+local flyButton = createButton(
+	"FLY: OFF",
+	UDim2.fromOffset(140, 50),
+	UDim2.new(0, 20, 0.5, 0)
+)
+
+--// Up button
+local upButton = createButton(
+	"⬆️",
+	UDim2.fromOffset(70, 60),
+	UDim2.new(1, -170, 1, -180)
+)
+
+--// Down button
+local downButton = createButton(
+	"⬇️",
+	UDim2.fromOffset(70, 60),
+	UDim2.new(1, -170, 1, -110)
+)
+
+--------------------------------------------------
+-- DRAGGABLE FLY BUTTON
+--------------------------------------------------
+
+local dragging = false
+local dragStart
+local startPosition
+
+flyButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = true
+		dragStart = input.Position
+		startPosition = flyButton.Position
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if not dragging then return end
+
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		local delta = input.Position - dragStart
+
+		flyButton.Position = UDim2.new(
+			startPosition.X.Scale,
+			startPosition.X.Offset + delta.X,
+			startPosition.Y.Scale,
+			startPosition.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = false
+	end
+end)
+
+--------------------------------------------------
+-- UP / DOWN CONTROLS
+--------------------------------------------------
+
+local function setVertical(value)
+	vertical = value
+end
+
+upButton.MouseButton1Down:Connect(function()
+	setVertical(1)
+end)
+
+upButton.MouseButton1Up:Connect(function()
+	setVertical(0)
+end)
+
+downButton.MouseButton1Down:Connect(function()
+	setVertical(-1)
+end)
+
+downButton.MouseButton1Up:Connect(function()
+	setVertical(0)
+end)
+
+UIS.TouchEnded:Connect(function()
+	vertical = 0
+end)
+
+--------------------------------------------------
+-- SPEED SLIDER
+--------------------------------------------------
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.fromOffset(180, 30)
+speedLabel.Position = UDim2.new(0, 20, 0.5, 65)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed: 50"
+speedLabel.TextScaled = true
+speedLabel.Parent = gui
+
+local slider = Instance.new("Frame")
+slider.Size = UDim2.fromOffset(180, 12)
+slider.Position = UDim2.new(0, 20, 0.5, 100)
+slider.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+slider.BorderSizePixel = 0
+slider.Parent = gui
+
+local sliderCorner = Instance.new("UICorner")
+sliderCorner.CornerRadius = UDim.new(1, 0)
+sliderCorner.Parent = slider
+
+local knob = Instance.new("TextButton")
+knob.Size = UDim2.fromOffset(22, 22)
+knob.Position = UDim2.new(0.285, -11, 0.5, -11)
+knob.Text = ""
+knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+knob.BorderSizePixel = 0
+knob.Parent = slider
+
+local knobCorner = Instance.new("UICorner")
+knobCorner.CornerRadius = UDim.new(1, 0)
+knobCorner.Parent = knob
+
+local sliderDragging = false
+
+local function updateSpeed(inputX)
+	local left = slider.AbsolutePosition.X
+	local width = slider.AbsoluteSize.X
+
+	local percent = math.clamp(
+		(inputX - left) / width,
+		0,
+		1
+	)
+
+	speed = math.floor(10 + percent * 140)
+
+	knob.Position = UDim2.new(
+		percent,
+		-11,
+		0.5,
+		-11
+	)
+
+	speedLabel.Text = "Speed: " .. speed
+end
+
+knob.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		sliderDragging = true
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if not sliderDragging then return end
+
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		updateSpeed(input.Position.X)
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		sliderDragging = false
+	end
+end)
+
+--------------------------------------------------
+-- FLY SYSTEM
+--------------------------------------------------
+
+local function startFly()
+	if flying then return end
+
+	local character = player.Character
+	if not character then return end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	flying = true
+
+	local velocity = Instance.new("BodyVelocity")
+	velocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+	velocity.Velocity = Vector3.zero
+	velocity.Parent = root
+
+	flyConnection = RunService.RenderStepped:Connect(function()
+		if not flying or not root.Parent then
+			return
+		end
+
+		local camera = workspace.CurrentCamera
+
+		local direction =
+			camera.CFrame.LookVector * speed
+
+		direction +=
+			Vector3.new(0, vertical * speed, 0)
+
+		velocity.Velocity = direction
+	end)
+end
+
+local function stopFly()
+	flying = false
+	vertical = 0
+
+	if flyConnection then
+		flyConnection:Disconnect()
+		flyConnection = nil
+	end
+
+	local character = player.Character
+
+	if character then
+		local root =
+			character:FindFirstChild("HumanoidRootPart")
+
+		if root then
+			local velocity =
+				root:FindFirstChildOfClass("BodyVelocity")
+
+			if velocity then
+				velocity:Destroy()
+			end
+		end
+	end
+end
+
+--------------------------------------------------
+-- FLY TOGGLE
+--------------------------------------------------
+
+flyButton.Activated:Connect(function()
+	if flying then
+		stopFly()
+		flyButton.Text = "FLY: OFF"
+	else
+		startFly()
+		flyButton.Text = "FLY: ON"
+	end
+end)
+
+--------------------------------------------------
+-- RESPAWN
+--------------------------------------------------
+
+player.CharacterAdded:Connect(function()
+	stopFly()
+	flyButton.Text = "FLY: OFF"
+end)
