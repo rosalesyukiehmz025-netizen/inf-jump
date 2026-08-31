@@ -1,0 +1,180 @@
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local flying = false
+local speed = 50
+local vertical = 0
+local connection
+local velocity
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "YukzzFly"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- Fly button
+local fly = Instance.new("TextButton")
+fly.Size = UDim2.fromOffset(140, 50)
+fly.Position = UDim2.new(0, 20, 0.5, 0)
+fly.Text = "FLY: OFF"
+fly.TextScaled = true
+fly.Parent = gui
+
+-- Up button
+local up = Instance.new("TextButton")
+up.Size = UDim2.fromOffset(70, 55)
+up.Position = UDim2.new(1, -90, 1, -180)
+up.Text = "⬆️"
+up.TextScaled = true
+up.Parent = gui
+
+-- Down button
+local down = Instance.new("TextButton")
+down.Size = UDim2.fromOffset(70, 55)
+down.Position = UDim2.new(1, -90, 1, -110)
+down.Text = "⬇️"
+down.TextScaled = true
+down.Parent = gui
+
+-- Speed label
+local label = Instance.new("TextLabel")
+label.Size = UDim2.fromOffset(180, 30)
+label.Position = UDim2.new(0, 20, 0.5, 60)
+label.Text = "Speed: 50"
+label.TextScaled = true
+label.BackgroundTransparency = 1
+label.Parent = gui
+
+-- Speed slider
+local slider = Instance.new("TextButton")
+slider.Size = UDim2.fromOffset(180, 20)
+slider.Position = UDim2.new(0, 20, 0.5, 95)
+slider.Text = ""
+slider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+slider.Parent = gui
+
+local knob = Instance.new("Frame")
+knob.Size = UDim2.fromOffset(20, 30)
+knob.Position = UDim2.new(0.285, -10, 0.5, -15)
+knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+knob.Parent = slider
+
+-- Speed slider
+local sliding = false
+
+local function setSpeed(x)
+	local start = slider.AbsolutePosition.X
+	local width = slider.AbsoluteSize.X
+
+	local percent = math.clamp((x - start) / width, 0, 1)
+
+	speed = math.floor(10 + percent * 140)
+
+	knob.Position = UDim2.new(percent, -10, 0.5, -15)
+	label.Text = "Speed: " .. speed
+end
+
+slider.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		sliding = true
+		setSpeed(input.Position.X)
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if sliding then
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			setSpeed(input.Position.X)
+		end
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		sliding = false
+	end
+end)
+
+-- Up / Down
+up.MouseButton1Down:Connect(function()
+	vertical = 1
+end)
+
+up.MouseButton1Up:Connect(function()
+	vertical = 0
+end)
+
+down.MouseButton1Down:Connect(function()
+	vertical = -1
+end)
+
+down.MouseButton1Up:Connect(function()
+	vertical = 0
+end)
+
+-- Fly
+local function stopFly()
+	flying = false
+	vertical = 0
+
+	if connection then
+		connection:Disconnect()
+		connection = nil
+	end
+
+	if velocity then
+		velocity:Destroy()
+		velocity = nil
+	end
+end
+
+local function startFly()
+	local character = player.Character
+	if not character then return end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	flying = true
+
+	velocity = Instance.new("BodyVelocity")
+	velocity.MaxForce = Vector3.new(100000, 100000, 100000)
+	velocity.Parent = root
+
+	connection = RunService.RenderStepped:Connect(function()
+		if not flying or not root.Parent then
+			stopFly()
+			return
+		end
+
+		local camera = workspace.CurrentCamera
+
+		velocity.Velocity =
+			camera.CFrame.LookVector * speed
+			+ Vector3.new(0, vertical * speed, 0)
+	end)
+end
+
+fly.Activated:Connect(function()
+	if flying then
+		stopFly()
+		fly.Text = "FLY: OFF"
+	else
+		startFly()
+		fly.Text = "FLY: ON"
+	end
+end)
+
+player.CharacterAdded:Connect(function()
+	stopFly()
+	fly.Text = "FLY: OFF"
+end)
