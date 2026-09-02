@@ -1,0 +1,156 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local event = ReplicatedStorage:WaitForChild("MovementEvent")
+
+local MIN_SPEED = 16
+local MAX_SPEED = 100
+
+event.OnServerEvent:Connect(function(player, action, value)
+
+	local character = player.Character
+	if not character then return end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+
+	if action == "Speed" then
+		local speed = math.clamp(tonumber(value) or MIN_SPEED, MIN_SPEED, MAX_SPEED)
+		humanoid.WalkSpeed = speed
+
+	elseif action == "Fly" then
+		-- Server-authorized fly state.
+		-- Your game's actual flight controller can use this state.
+		character:SetAttribute("Flying", value == true)
+	end
+end)
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local event = ReplicatedStorage:WaitForChild("MovementEvent")
+
+local flying = false
+local speed = 50
+local vertical = 0
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "YukzzMovement"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local flyButton = Instance.new("TextButton")
+flyButton.Size = UDim2.fromOffset(140, 50)
+flyButton.Position = UDim2.new(0, 20, 0.5, 0)
+flyButton.Text = "FLY: OFF"
+flyButton.TextScaled = true
+flyButton.Parent = gui
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.fromOffset(180, 30)
+speedLabel.Position = UDim2.new(0, 20, 0.5, 60)
+speedLabel.Text = "Speed: 50"
+speedLabel.TextScaled = true
+speedLabel.BackgroundTransparency = 1
+speedLabel.Parent = gui
+
+local up = Instance.new("TextButton")
+up.Size = UDim2.fromOffset(65, 55)
+up.Position = UDim2.new(1, -85, 1, -180)
+up.Text = "⬆️"
+up.TextScaled = true
+up.Parent = gui
+
+local down = Instance.new("TextButton")
+down.Size = UDim2.fromOffset(65, 55)
+down.Position = UDim2.new(1, -85, 1, -110)
+down.Text = "⬇️"
+down.TextScaled = true
+down.Parent = gui
+
+-- Speed slider
+local slider = Instance.new("TextButton")
+slider.Size = UDim2.fromOffset(180, 20)
+slider.Position = UDim2.new(0, 20, 0.5, 95)
+slider.Text = ""
+slider.Parent = gui
+
+local knob = Instance.new("Frame")
+knob.Size = UDim2.fromOffset(20, 30)
+knob.Position = UDim2.new(0.38, -10, 0.5, -15)
+knob.Parent = slider
+
+local sliding = false
+
+local function updateSpeed(x)
+	local start = slider.AbsolutePosition.X
+	local width = slider.AbsoluteSize.X
+
+	local percent = math.clamp((x - start) / width, 0, 1)
+
+	speed = math.floor(16 + percent * 84)
+
+	knob.Position = UDim2.new(percent, -10, 0.5, -15)
+	speedLabel.Text = "Speed: " .. speed
+
+	event:FireServer("Speed", speed)
+end
+
+slider.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch
+		or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+		sliding = true
+		updateSpeed(input.Position.X)
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if not sliding then return end
+
+	if input.UserInputType == Enum.UserInputType.Touch
+		or input.UserInputType == Enum.UserInputType.MouseMovement then
+
+		updateSpeed(input.Position.X)
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch
+		or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+		sliding = false
+	end
+end)
+
+-- Fly toggle
+flyButton.Activated:Connect(function()
+	flying = not flying
+
+	flyButton.Text = flying and "FLY: ON" or "FLY: OFF"
+
+	event:FireServer("Fly", flying)
+end)
+
+-- Up/down buttons
+up.MouseButton1Down:Connect(function()
+	vertical = 1
+end)
+
+up.MouseButton1Up:Connect(function()
+	vertical = 0
+end)
+
+down.MouseButton1Down:Connect(function()
+	vertical = -1
+end)
+
+down.MouseButton1Up:Connect(function()
+	vertical = 0
+end)
+
+UIS.TouchEnded:Connect(function()
+	vertical = 0
+end)
